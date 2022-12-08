@@ -1,0 +1,13 @@
+select 	case when dest_path like '%users%' then '3' else '1' end as Shift,
+		to_char(now() :: date, 'yyyymmdd') as today,
+		to_char((now() :: date) - 1, 'yyyymmdd')  as day_to_check,
+		filename_pattern, dest_path, count(*) as n_file_count, 
+		case when dest_path like '%users%' and dest_path not like '%signal%' then '6' end as n_file_monitor,
+		case when dest_path like '%users%' then '20:00:00' else '00:30:00' end as SLA_GMT,
+		case when dest_path like '%users%' then '03:00:00' else '07:30:00' end as SLA_VNT,
+		now() :: time as time_now
+from vw_timestamp_file vtf 
+where dataset_id = 1170
+and (dest_path like '%2022/12/07%' or dest_path like '%2022/12/08%')		
+group by filename_pattern, dest_path
+order by 1
