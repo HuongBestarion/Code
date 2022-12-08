@@ -1,0 +1,64 @@
+with vw_monitor_2 
+	as (
+		select *, 
+			case when filepath_pattern like '%DD}/%' then split_part(filepath_pattern, 'DD}/', 2) 
+			else 
+				case when filepath_pattern like '%MM}/%' then split_part(filepath_pattern, 'MM}/', 2) 
+				end 
+			end as filename_pattern
+		from vw_monitor 
+		where dataset_id = 991
+		and issue_severity_id =1
+		)
+select case when a.VNA_note is not null and to_char(now() :: date, 'yyyymmdd')::numeric - regexp_replace(b.dest_filename, '[^0-9]','','g') :: numeric = 1 then 'file arrived'
+			 when a.VNA_note is null and to_char(now() :: date, 'yyyymmdd') = regexp_replace(b.dest_filename, '[^0-9]','','g') then 'file arrived' end as arrive_or_not,
+		a.filepath_pattern, 
+		regexp_replace(b.dest_filename, '[^0-9]','','g') as latest_file_date,
+		to_char(now() :: date, 'yyyymmdd') as today,		
+		a.start_time as SLA_UTC,
+		a.start_time + interval '12 hours' as SLA_VNA,
+		now() :: time as now,
+		now() :: time - interval '7 hours' as now_utc,
+		case when a.start_time + interval '12 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
+			 when a.start_time + interval '12 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
+			 else '3' end as shift,
+		a.VNA_note,
+		a.utc_note,
+		b.dest_filename as latest_file,
+		b.listing_begin_time,
+		b.consumer_put_time,
+		a.last_check_time,
+		a.last_exists_time,
+		a.next_critical_time
+from 
+	(select *,
+			case when filename_pattern like '%C1_YYYY%' then replace(filename_pattern, '${C1_YYYY}${C1_MM}${C1_DD}','')
+				 when filename_pattern like '%B1_YYYY%' then replace(filename_pattern, '${B1_YYYY}${B1_MM}${B1_DD}','')
+				 when filename_pattern like '%T_YYYY%' then replace(filename_pattern, '${T_YYYY}${T_MM}${T_DD}','')
+			end as filename_pattern_2,
+			case when (start_time < to_timestamp('03:00:00','HH:MM:SS')::time or start_time > to_timestamp('22:00:00','HH24:MM:SS')::time) then '+1 day' 
+			 when filepath_pattern like '%openinterest%' then '+1 day - File arrives on business days' end as VNA_note,
+			case when start_time < to_timestamp('10:00:00','HH:MM:SS')::time then '+1 day' 
+			 when filepath_pattern like '%openinterest%' then '+1 day - File arrives on business days' end as utc_note
+	from vw_monitor_2) a
+inner join 
+	(select vtf3.*, 
+			case when vtf3.filename_pattern like '%C1_YYYY%' then replace(vtf3.filename_pattern, '${C1_YYYY}${C1_MM}${C1_DD}','')
+				 when vtf3.filename_pattern like '%B1_YYYY%' then replace(vtf3.filename_pattern, '${B1_YYYY}${B1_MM}${B1_DD}','')
+				 when vtf3.filename_pattern like '%T_YYYY%' then replace(vtf3.filename_pattern, '${T_YYYY}${T_MM}${T_DD}','')
+			end as filename_pattern_2
+	from
+		(select filename_pattern, max(consumer_put_time) consumer_put_time
+		from vw_timestamp_file
+		where consumer_put_time >= '2022-11-01'
+		and dataset_id = 991
+		group by filename_pattern) vtf2 
+		inner join (select * from vw_timestamp_file where consumer_put_time >= '2022-11-01' and dataset_id = 991) vtf3 on vtf2.filename_pattern || vtf2.consumer_put_time = vtf3.filename_pattern || vtf3.consumer_put_time 
+	) b
+on a.filename_pattern_2 = replace(b.filename_pattern_2,'\','')
+where 
+	case when a.start_time + interval '12 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
+			 when a.start_time + interval '12 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
+			 else '3' end in ('2')--,'2','3')
+	--and filepath_pattern like '%ivydbus%'
+order by 4 asc;
