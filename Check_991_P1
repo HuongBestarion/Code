@@ -16,11 +16,11 @@ select case when a.VNA_note is not null and to_char(now() :: date, 'yyyymmdd')::
 		regexp_replace(b.dest_filename, '[^0-9]','','g') as latest_file_date,
 		to_char(now() :: date, 'yyyymmdd') as today,		
 		a.start_time as SLA_UTC,
-		a.start_time + interval '12 hours' as SLA_VNA,
+		a.start_time + interval '11 hours' as SLA_VNA,
 		now() :: time as now,
 		now() :: time - interval '7 hours' as now_utc,
-		case when a.start_time + interval '12 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
-			 when a.start_time + interval '12 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
+		case when a.start_time + interval '11 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '11 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
+			 when a.start_time + interval '11 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '11 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
 			 else '3' end as shift,
 		a.VNA_note,
 		a.utc_note,
@@ -53,12 +53,12 @@ inner join
 		where consumer_put_time >= '2022-11-01'
 		and dataset_id = 991
 		group by filename_pattern) vtf2 
-		inner join (select * from vw_timestamp_file where consumer_put_time >= '2022-11-01' and dataset_id = 991) vtf3 on vtf2.filename_pattern || vtf2.consumer_put_time = vtf3.filename_pattern || vtf3.consumer_put_time 
+		inner join (select * from vw_timestamp_file where consumer_put_time >= '2023-01-01' and dataset_id = 991) vtf3 on vtf2.filename_pattern || vtf2.consumer_put_time = vtf3.filename_pattern || vtf3.consumer_put_time 
 	) b
 on a.filename_pattern_2 = replace(b.filename_pattern_2,'\','')
 where 
-	case when a.start_time + interval '12 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
-			 when a.start_time + interval '12 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '12 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
-			 else '3' end in ('2')--,'2','3')
+	case when a.start_time + interval '11 hours' >= to_timestamp('07:00:00','HH24:MM:SS')::time and a.start_time + interval '11 hours' < to_timestamp('15:00:00','HH24:MM:SS')::time then '1'
+			 when a.start_time + interval '11 hours' >= to_timestamp('15:00:00','HH24:MM:SS')::time and a.start_time + interval '11 hours' < to_timestamp('23:00:00','HH24:MM:SS')::time then '2'
+			 else '3' end in ('3')--,'2','3')
 	--and filepath_pattern like '%ivydbus%'
-order by 4 asc;
+order by 6 asc;
